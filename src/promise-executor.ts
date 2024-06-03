@@ -10,15 +10,16 @@ export function promiseExecutor(tasks: (() => Promise<unknown>)[], concurrentLim
         return;
       }
       tasks[i]()
-        .then(() => {
+        .then((i) => {
           completedTasks++;
           if (completedTasks === tasks.length) {
-            resolve('All tasks completed successfully');
+            resolve(i);
           } else {
             runNextTask();
           }
         })
-        .catch(() => {
+        .catch((_) => {
+          console.error('Task ' + i + ' failed, retrying (' + taskAttempts[i] + '/' + retryLimit + ')', _);
           setTimeout(() => tryTask(i), delay);
         });
       taskAttempts[i]++;
