@@ -1,4 +1,4 @@
-import {launch, PuppeteerLaunchOptions, Page} from 'puppeteer';
+import {launch, PuppeteerLaunchOptions, Page, KnownDevices, Device} from 'puppeteer';
 import {screenshots} from './screenshots';
 import {diffImageDirectory} from "./diff-image";
 
@@ -10,6 +10,7 @@ type BrowserOptions = {
   disableImage?: boolean;
   disableJs: boolean;
   ignoreElements?: string[];
+  device?: 'iOS' | 'desktop' | 'Android' | 'iPad' | Device | keyof typeof KnownDevices;
 } & PuppeteerLaunchOptions;
 
 async function commonBeforeCallback(page: Page, options?: BrowserOptions) {
@@ -27,6 +28,21 @@ async function commonBeforeCallback(page: Page, options?: BrowserOptions) {
   // 禁用 js
   if (options?.disableJs) {
     await page.setJavaScriptEnabled(false);
+  }
+
+  if (options?.device) {
+    if (options.device === 'iOS') {
+      await page.emulate(KnownDevices['iPhone 13 Pro Max']);
+    } else if (options.device === 'Android') {
+      await page.emulate(KnownDevices['Pixel 2 XL']);
+    } else if (options.device === 'iPad') {
+      await page.emulate(KnownDevices['iPad Pro 11 landscape']);
+    } else if (options.device === 'desktop') {
+    } else if ((options.device as keyof typeof KnownDevices) in KnownDevices) {
+      await page.emulate(KnownDevices[options.device as keyof typeof KnownDevices]);
+    } else {
+      await page.emulate(options.device as Device);
+    }
   }
 }
 
