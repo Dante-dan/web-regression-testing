@@ -1,41 +1,50 @@
-export function promiseExecutor(tasks: (() => Promise<unknown>)[], concurrentLimit: number = 5, retryLimit: number = 2, delay: number = 1000) {
+export function promiseExecutor<T>(tasks: (() => Promise<T>)[], concurrentLimit: number = 5, retryLimit: number = 2, delay: number = 1000): Promise<T[]> {
   let activePromises = 0;
   let completedTasks = 0;
-  let taskAttempts = new Array(tasks.length).fill(0);
-
+  let taskRetryAttempts = new Array(tasks.length).fill(0);
+  const results: T[] = [];
   return new Promise((resolve, reject) => {
-    function tryTask(i: number) {
-      if (taskAttempts[i] >= retryLimit) {
-        reject(new Error('Task ' + i + ' failed after ' + retryLimit + ' attempts'));
+    function runTask(index: number) {
+      if (index >= tasks.length) {
         return;
       }
-      tasks[i]()
-        .then((i) => {
-          completedTasks++;
-          if (completedTasks === tasks.length) {
-            resolve(i);
-          } else {
-            runNextTask();
-          }
-        })
-        .catch((_) => {
-          console.error('Task ' + i + ' failed, retrying (' + taskAttempts[i] + '/' + retryLimit + ')', _);
-          setTimeout(() => tryTask(i), delay);
-        });
-      taskAttempts[i]++;
-    }
-
-    function runNextTask() {
-      while (activePromises < concurrentLimit && completedTasks + activePromises < tasks.length) {
-        for (let i = 0; i < tasks.length && activePromises < concurrentLimit; i++) {
-          if (taskAttempts[i] === 0) {
-            activePromises++;
-            tryTask(i);
-          }
-        }
+      if(completedTasks === tasks.length) {
+        return;
       }
+      if (activePromises >= concurrentLimit) {
+        return;
+      }
+      activePromises++;
+      tasks[index]()
+        .then((result) => {
+          results[index] = result;
+          activePromises--;
+          completedTasks++;
+          runTask(completedTasks);
+        })
+        .catch((e) => {
+          if (taskRetryAttempts[index] < retryLimit) {
+            taskRetryAttempts[index]++;
+            process.env.debug && console.error(`Task ${index} failed, retrying...`);
+            setTimeout(() => {
+              activePromises--;
+              runTask(index);
+            }, delay);
+          } else {
+            results[index] = e;
+          }
+        }).finally(() => {
+          if(completedTasks === tasks.length) {
+            console.log(`All ${tasks.length} tasks completed`);
+            return resolve(results);
+          }
+          if(completedTasks < tasks.length && activePromises === 0 && results.length === tasks.length) {
+            console.log(`All tasks completed, But ${tasks.length - completedTasks} tasks failed`);
+            return resolve(results);
+          }
+      });
+      runTask(index + 1);
     }
-
-    runNextTask();
+    runTask(0);
   });
 }

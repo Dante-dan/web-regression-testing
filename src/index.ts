@@ -1,4 +1,5 @@
 import {launch, PuppeteerLaunchOptions, Page, KnownDevices, Device} from 'puppeteer';
+import { resolve } from 'path';
 import {screenshots} from './screenshots';
 import {diffImageDirectory} from "./diff-image";
 
@@ -12,6 +13,25 @@ type BrowserOptions = {
   ignoreElements?: string[];
   device?: 'iOS' | 'desktop' | 'Android' | 'iPad' | Device | keyof typeof KnownDevices;
 } & PuppeteerLaunchOptions;
+
+// https://github.com/puppeteer/puppeteer/issues/10144#issuecomment-1971867293
+const SCREENSHOT_PUPPETEER_OPTIONS: PuppeteerLaunchOptions = {
+  headless: false,
+  ignoreHTTPSErrors: true,
+  defaultViewport: null,
+  ignoreDefaultArgs: ['--enable-automation'],
+  args: [
+    '--disable-infobars',
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-gpu=False',
+    '--enable-webgl',
+    '--window-size=1600,900',
+    '--start-maximized',
+  ],
+  timeout: 5_000, // 10 seconds
+  protocolTimeout: 5_000, // 20 seconds
+}
 
 async function commonBeforeCallback(page: Page, options?: BrowserOptions) {
   if (options?.disableImage) {
@@ -58,7 +78,7 @@ async function commonAfterCallback(page: Page, options?: BrowserOptions) {
 async function controlGroupBrowser({urls}: { urls: string[] }, options?: BrowserOptions,) {
   const browser = await launch(
     {
-      headless: true,
+      ...SCREENSHOT_PUPPETEER_OPTIONS,
       executablePath,
       ...options,
     }
@@ -75,7 +95,7 @@ async function controlGroupBrowser({urls}: { urls: string[] }, options?: Browser
 async function experimentalGroupBrowser({urls}: { urls: string[] }, options?: BrowserOptions) {
   const browser = await launch(
     {
-      headless: true,
+      ...SCREENSHOT_PUPPETEER_OPTIONS,
       executablePath,
       ...options,
     }
@@ -94,6 +114,15 @@ const options: BrowserOptions = {
   disableImage: true,
   disableJs: true,
   ignoreElements: [],
+  device: {
+    userAgent: KnownDevices['Pixel 2 XL'].userAgent,
+    viewport: {
+      ...KnownDevices['Pixel 2 XL'].viewport,
+      width: 499,
+      height: 1700,
+      deviceScaleFactor: 1,
+    }
+  }
 }
 
 async function run() {
@@ -104,9 +133,19 @@ async function run() {
     console.log('Browser Finished');
   })
 
-  diffImageDirectory(EXPERIMENTAL_DIR, CONTROL_DIR, 'dist/diff').then((i) => {
-    console.log('i', i);
-    console.log('Diff Image Finished');
+  diffImageDirectory(EXPERIMENTAL_DIR, CONTROL_DIR, 'dist/diff', { threshold: 0.5 }).then((i) => {
+    console.log(`Diff All ${i.length} Image Finished`);
+    const differentImage = i.filter(([diffPixels]) => diffPixels > 1);
+    console.log(`Different Image Count: ${differentImage.length}`);
+    console.log(`Same Image Count: ${i.length - differentImage.length}`);
+    differentImage.forEach(([diffPixels, diffFile, sourceFile1, sourceFile2]) => {
+      if(diffFile) {
+        console.log(`Different Image: ${resolve(diffFile)} with ${diffPixels} different pixels`);
+      }
+      if(sourceFile1 && sourceFile2) {
+        console.log(`Different Image: ${resolve(sourceFile1)} vs ${resolve(sourceFile2)}`);
+      }
+    });
   })
 }
 

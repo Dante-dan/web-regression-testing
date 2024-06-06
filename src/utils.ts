@@ -12,3 +12,7 @@ export function matchDynamicUrl(path: string) {
     return { path: path.replace(/\/*$/, ""), id: ''};
   }
 }
+
+export function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
