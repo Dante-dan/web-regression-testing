@@ -2,7 +2,8 @@ import {launch, PuppeteerLaunchOptions, Page, KnownDevices, Device} from 'puppet
 import { resolve } from 'path';
 import {screenshots} from './screenshots';
 import {diffImageDirectory} from "./diff-image";
-
+import { PNG } from "pngjs";
+import { readFileSync } from "fs";
 const executablePath = process.env.CHROME_EXECUTABLE_PATH;
 const CONTROL_DIR = 'dist/control';
 const EXPERIMENTAL_DIR = 'dist/experimental';
@@ -143,7 +144,9 @@ async function run() {
         console.log(`Different Image: ${resolve(diffFile)} with ${diffPixels} different pixels`);
       }
       if(sourceFile1 && sourceFile2) {
-        console.log(`Different Image: ${resolve(sourceFile1)} vs ${resolve(sourceFile2)}`);
+        const sourceImage1 = PNG.sync.read(readFileSync(sourceFile1));
+        const sourceImage2 = PNG.sync.read(readFileSync(sourceFile2));
+        console.log(`Source Image Different Size: ${resolve(sourceFile1)}(${sourceImage1.width}x${sourceImage1.height}) vs ${resolve(sourceFile2)}(${sourceImage2.width}x${sourceImage2.height})`);
       }
     });
   })
