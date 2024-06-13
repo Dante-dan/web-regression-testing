@@ -1,9 +1,10 @@
 import {launch, PuppeteerLaunchOptions, Page, KnownDevices, Device} from 'puppeteer';
-import { resolve } from 'path';
+import {resolve} from 'path';
 import {screenshots} from './screenshots';
 import {diffImageDirectory} from "./diff-image";
-import { PNG } from "pngjs";
-import { readFileSync } from "fs";
+import {PNG} from "pngjs";
+import {readFileSync} from "fs";
+
 const executablePath = process.env.CHROME_EXECUTABLE_PATH;
 const CONTROL_DIR = 'dist/control';
 const EXPERIMENTAL_DIR = 'dist/experimental';
@@ -65,15 +66,17 @@ async function commonBeforeCallback(page: Page, options?: BrowserOptions) {
       await page.emulate(options.device as Device);
     }
   }
+  return Promise.resolve();
 }
 
 async function commonAfterCallback(page: Page, options?: BrowserOptions) {
   // 忽略特定元素, 本质上就是将这些元素的 opacity 设置为 0
-  if (options?.ignoreElements) {
+  if (Array.isArray(options?.ignoreElements) && options.ignoreElements.length > 0) {
     await page.addStyleTag({
       content: options.ignoreElements.map(selector => `${selector} { opacity: 0 !important; }`).join('\n')
     });
   }
+  return Promise.resolve();
 }
 
 async function controlGroupBrowser({urls}: { urls: string[] }, options?: BrowserOptions,) {
@@ -84,12 +87,17 @@ async function controlGroupBrowser({urls}: { urls: string[] }, options?: Browser
       ...options,
     }
   );
-  await screenshots({urls, browser}, {
-    directory: CONTROL_DIR,
-    pageBeforeCallback: async (page: Page) => await commonBeforeCallback(page, options),
-    pageAfterCallback: async (page: Page) => await commonAfterCallback(page, options)
-  });
-  await browser.close();
+  try {
+    await screenshots({urls, browser}, {
+      directory: CONTROL_DIR,
+      pageBeforeCallback: async (page: Page) => await commonBeforeCallback(page, options),
+      pageAfterCallback: async (page: Page) => await commonAfterCallback(page, options)
+    });
+  } catch (e) {
+    console.error(e);
+  } finally {
+    await browser.close();
+  }
 }
 
 
@@ -102,12 +110,17 @@ async function experimentalGroupBrowser({urls}: { urls: string[] }, options?: Br
     }
   );
 
-  await screenshots({urls, browser}, {
-    directory: EXPERIMENTAL_DIR, pageBeforeCallback: async (page: Page) => {
-      await commonBeforeCallback(page, options);
-    }, pageAfterCallback: async (page: Page) => await commonAfterCallback(page, options)
-  });
-  await browser.close();
+  try {
+    await screenshots({urls, browser}, {
+      directory: EXPERIMENTAL_DIR, pageBeforeCallback: async (page: Page) => {
+        await commonBeforeCallback(page, options);
+      }, pageAfterCallback: async (page: Page) => await commonAfterCallback(page, options)
+    });
+  } catch (e) {
+    console.error(e);
+  } finally {
+    await browser.close();
+  }
 }
 
 
@@ -128,27 +141,29 @@ const options: BrowserOptions = {
 
 async function run() {
   await Promise.all([
-    experimentalGroupBrowser({urls: ['https://www.google.com']}, options),
-    controlGroupBrowser({urls: ['https://www.google.com']}, options),
+    experimentalGroupBrowser({urls: ['https://www.google.com.hk/']}, options),
+    controlGroupBrowser({urls: ['https://www.google.com.hk/']}, options),
   ]).then(() => {
     console.log('Browser Finished');
   })
 
-  diffImageDirectory(EXPERIMENTAL_DIR, CONTROL_DIR, 'dist/diff', { threshold: 0.5 }).then((i) => {
+  diffImageDirectory(EXPERIMENTAL_DIR, CONTROL_DIR, 'dist/diff', {threshold: 0.5}).then((i) => {
     console.log(`Diff All ${i.length} Image Finished`);
     const differentImage = i.filter(([diffPixels]) => diffPixels > 1);
     console.log(`Different Image Count: ${differentImage.length}`);
     console.log(`Same Image Count: ${i.length - differentImage.length}`);
     differentImage.forEach(([diffPixels, diffFile, sourceFile1, sourceFile2]) => {
-      if(diffFile) {
+      if (diffFile) {
         console.log(`Different Image: ${resolve(diffFile)} with ${diffPixels} different pixels`);
       }
-      if(sourceFile1 && sourceFile2) {
+      if (sourceFile1 && sourceFile2) {
         const sourceImage1 = PNG.sync.read(readFileSync(sourceFile1));
         const sourceImage2 = PNG.sync.read(readFileSync(sourceFile2));
         console.log(`Source Image Different Size: ${resolve(sourceFile1)}(${sourceImage1.width}x${sourceImage1.height}) vs ${resolve(sourceFile2)}(${sourceImage2.width}x${sourceImage2.height})`);
       }
     });
+  }).catch((e) => {
+    console.error(e);
   })
 }
 

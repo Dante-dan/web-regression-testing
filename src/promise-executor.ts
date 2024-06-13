@@ -25,7 +25,7 @@ export function promiseExecutor<T>(tasks: (() => Promise<T>)[], concurrentLimit:
         .catch((e) => {
           if (taskRetryAttempts[index] < retryLimit) {
             taskRetryAttempts[index]++;
-            process.env.debug && console.error(`Task ${index} failed, retrying...`);
+            process.env.DEBUG && console.error(`Task ${index} failed, retrying...`);
             setTimeout(() => {
               activePromises--;
               runTask(index);
@@ -35,11 +35,11 @@ export function promiseExecutor<T>(tasks: (() => Promise<T>)[], concurrentLimit:
           }
         }).finally(() => {
           if(completedTasks === tasks.length) {
-            console.log(`All ${tasks.length} tasks completed`);
+            process.env.DEBUG && console.log(`All ${tasks.length} tasks completed`);
             return resolve(results);
           }
           if(completedTasks < tasks.length && activePromises === 0 && results.length === tasks.length) {
-            console.log(`All tasks completed, But ${tasks.length - completedTasks} tasks failed`);
+            console.error(`All tasks completed, But ${tasks.length - completedTasks} tasks failed`);
             return resolve(results);
           }
       });

@@ -25,23 +25,25 @@ export function diffImageDirectory(experimentalDir: string, controlDir: string, 
         console.error(err);
         return;
       }
-      const tasks = files.map(file => {
+      const tasks = files.filter((file) => {
+        const experimentalFileStr = join(experimentalDir, file);
+        const controlFileStr = join(controlDir, file);
+        if (!experimentalFileStr.endsWith('.png') || !controlFileStr.endsWith('.png')) {
+          if(statSync(experimentalFileStr).isDirectory()) {
+            const diffFileStr = join(diffDir, file);
+            mkdirSync(diffFileStr, { recursive: true });
+            return false;
+          }
+          return true;
+        }
+        if(statSync(experimentalFileStr).isFile() || statSync(controlFileStr).isFile()) {
+          return true;
+        }
+      }).map(file => {
         return () => {
           return new Promise<[number,string]>((resolve) => {
             const experimentalFileStr = join(experimentalDir, file);
             const controlFileStr = join(controlDir, file);
-            if (!experimentalFileStr.endsWith('.png') || !controlFileStr.endsWith('.png')) {
-              // experimentalFileStr 是一个目录, 则应该在 diffDir 下新建这个目录
-              if(statSync(experimentalFileStr).isDirectory()) {
-                const diffFileStr = join(diffDir, file);
-                mkdirSync(diffFileStr, { recursive: true });
-                resolve([0, diffFileStr]);
-                return;
-              }
-              console.error('Path is not a PNG image, skipping ' + file);
-              resolve([Infinity, file]);
-              return;
-            }
             if(!existsSync(controlFileStr)) {
               // 对应文件不存在则应该将 experimentalDir 下的文件复制到 diffDir
               const experimental = readFileSync(experimentalFileStr);
@@ -59,13 +61,13 @@ export function diffImageDirectory(experimentalDir: string, controlDir: string, 
 
             const { width, height } = experimental;
             if (control.width !== width || control.height !== height) {
-              process.env.debug && console.log(`Image dimensions do not match: ${width}x${height} vs ${control.width}x${control.height}`);
+              process.env.DEBUG && console.log(`Image dimensions do not match: ${width}x${height} vs ${control.width}x${control.height}`);
               // @ts-ignore
               resolve([Infinity, '', experimentalFileStr, controlFileStr]);
               return;
             }
             const diff = new PNG({ width, height });
-            process.env.debug && console.log('Comparing ' + file);
+            process.env.DEBUG && console.log('Comparing ' + file);
             try {
               const diffPixels = pixelmatch(
                 experimental.data,
@@ -75,7 +77,7 @@ export function diffImageDirectory(experimentalDir: string, controlDir: string, 
                 height,
                 options
               );
-              process.env.debug && console.log('Image compared: ' + file + ' with ' + diffPixels + ' different pixels');
+              process.env.DEBUG && console.log('Image compared: ' + file + ' with ' + diffPixels + ' different pixels');
               resolve([diffPixels,join(join(diffDir, file.replace('.png', '-diff.png')))]);
               diff.pack().pipe(
                 createWriteStream(
@@ -89,7 +91,7 @@ export function diffImageDirectory(experimentalDir: string, controlDir: string, 
           });
         };
       });
-      promiseExecutor(tasks, 10, 2, 1000)
+      promiseExecutor(tasks, 10, 2)
         .then((i) => {
           console.log('All images compared successfully');
           resolve(i);

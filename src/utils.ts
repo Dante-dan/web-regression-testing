@@ -1,4 +1,4 @@
-export function matchDynamicUrl(path: string) {
+export function matchDynamicUrl(path: string, index?: number) {
   const regex = /(\/\w+\/)*(\d+)$/;
   const match = path.match(regex);
   if (match) {
