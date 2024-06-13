@@ -4,12 +4,9 @@ export function matchDynamicUrl(path: string, index?: number) {
   if (match) {
     const pathname = match[1].slice(0, -1);
     const id = match[2];
-    return {
-      path: pathname,
-      id,
-    }
+    return `${pathname}/${index || id}`;
   } else {
-    return { path: path.replace(/\/*$/, ""), id: ''};
+    return `${path.replace(/\/*$/, "")}/${index}`;
   }
 }
 
