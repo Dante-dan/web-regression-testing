@@ -3,7 +3,6 @@ import {
   readFileSync,
   createWriteStream,
   mkdirSync,
-  rmdirSync,
   existsSync,
   copyFileSync,
   statSync,
@@ -46,7 +45,6 @@ export function diffImageDirectory(experimentalDir: string, controlDir: string, 
             const controlFileStr = join(controlDir, file);
             if(!existsSync(controlFileStr)) {
               // 对应文件不存在则应该将 experimentalDir 下的文件复制到 diffDir
-              const experimental = readFileSync(experimentalFileStr);
               const diffFileStr = join(diffDir, file);
               copyFileSync(experimentalFileStr, diffFileStr);
               resolve([Infinity, diffFileStr]);

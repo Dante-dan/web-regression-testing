@@ -1,7 +1,7 @@
 import {Browser, Page} from "puppeteer";
 import {existsSync, mkdirSync, rmSync} from "fs";
 import {join, dirname, basename} from "path";
-import {matchDynamicUrl, sleep} from "./utils";
+import {sleep} from "./utils";
 import {promiseExecutor} from "./promise-executor";
 
 export async function screenshots({urls, browser}: { urls: string[], browser: Browser }, options?: {

@@ -3,7 +3,7 @@ export function promiseExecutor<T>(tasks: (() => Promise<T>)[], concurrentLimit:
   let completedTasks = 0;
   let taskRetryAttempts = new Array(tasks.length).fill(0);
   const results: T[] = [];
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     function runTask(index: number) {
       if (index >= tasks.length) {
         return;
