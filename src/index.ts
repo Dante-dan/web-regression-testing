@@ -141,8 +141,8 @@ const options: BrowserOptions = {
 
 async function run() {
   await Promise.all([
-    experimentalGroupBrowser({urls: ['https://www.google.com.hk/']}, options),
-    controlGroupBrowser({urls: ['https://www.google.com.hk/']}, options),
+    experimentalGroupBrowser({urls: ['https://www.google.com/']}, options),
+    controlGroupBrowser({urls: ['https://www.google.com/']}, options),
   ]).then(() => {
     console.log('Browser Finished');
   })
